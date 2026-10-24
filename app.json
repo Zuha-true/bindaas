@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "Bindaas",
+    "slug": "bindaas",
+    "scheme": "bindaas",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": ["expo-router"],
+    "experiments": { "typedRoutes": true },
+    "android": { "package": "com.bindaas.safety" }
+  }
+}
