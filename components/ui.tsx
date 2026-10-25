@@ -187,7 +187,7 @@ export function Title({ children }: PropsWithChildren) { return <Text style={sty
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.pink50 }, dark: { backgroundColor: colors.ink }, scroll: { flexGrow: 1 },
-  content: { flex: 1, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 30, gap: 18 },
+  content: { flex: 1, paddingHorizontal: 20, paddingTop: 14, paddingBottom: 112, gap: 18 },
   heading: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48 },
   back: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
   h1: { fontFamily: type.display, fontSize: 30, color: colors.ink, flex: 1 }, h2: { fontFamily: type.display, fontSize: 24, color: colors.ink },

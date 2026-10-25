@@ -1,0 +1,15 @@
+import { demoRoutes } from '../data/demoRoute.ts';
+import { analyseRoute, rankAnalyses } from '../services/route/score.ts';
+import { statusAt } from '../services/route/hours.ts';
+const checks: [string, boolean][] = [];
+const check = (name: string, value: boolean) => checks.push([name, value]);
+check('24/7 is open', statusAt('24/7', new Date()) === 'open');
+check('missing hours are unknown', statusAt(undefined, new Date()) === 'unknown');
+const ranked = rankAnalyses(demoRoutes.map(route => analyseRoute(route, Date.UTC(2026, 0, 5, 15, 30), 'walk')));
+check('demo has two routes', ranked.length === 2);
+check('routes have six components', ranked.every(route => route.components.length === 6));
+check('scores are bounded', ranked.every(route => route.score >= 0 && route.score <= 100));
+check('ranking is descending', ranked[0].score >= ranked[1].score);
+for (const [name, passed] of checks) console.log(`${passed ? 'PASS' : 'FAIL'} ${name}`);
+if (checks.some(([, passed]) => !passed)) process.exitCode = 1;
+else console.log(`${checks.length} passed, 0 failed`);

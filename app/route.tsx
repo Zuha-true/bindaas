@@ -1,1 +1,1 @@
-export { RouteScreen as default } from '../screens';
+export { default } from '../features/route/RouteScreen';

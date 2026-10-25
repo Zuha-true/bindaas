@@ -1,0 +1,2 @@
+import { useSyncExternalStore } from 'react'; import type { RouteAnalysis } from '../types/route';
+let selected:RouteAnalysis|undefined; const listeners=new Set<()=>void>(); export const routeStore={get:()=>selected,set:(r:RouteAnalysis)=>{selected=r;listeners.forEach(x=>x())},subscribe:(fn:()=>void)=>{listeners.add(fn);return()=>listeners.delete(fn)}}; export function useRouteSelection(){return useSyncExternalStore(routeStore.subscribe,routeStore.get,routeStore.get)}

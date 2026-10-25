@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, AppState, Linking, Modal, Pressable, Share, Text, TextInput, Vibration, View } from 'react-native';
-import { Href, router, useFocusEffect } from 'expo-router';
+import { Href, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
 import * as SMS from 'expo-sms';
 import Constants from 'expo-constants';
@@ -12,7 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AudioModule, useAudioPlayer } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
 import { Activity, Bell, Calculator as CalculatorIcon, Delete, Heart, Phone, RotateCcwClock, Search, ShieldCheck, Siren, Utensils, X } from 'lucide-react-native';
-import { Button, Body, Card, Chip, Field, Heading, HeaderBand, Label, MapPlaceholder, ScoreRing, Screen, TabBar, Tile, Title, Toggle } from './components/ui';
+import { Button, Body, Card, Chip, Field, Heading, HeaderBand, Label, MapPlaceholder, ScoreRing, Screen, Tile, Title, Toggle } from './components/ui';
 import { colors, shadow, type } from './theme/tokens';
 import { ROUTES, AppRoute } from './constants/routes';
 import { recipes, routes } from './data/mock';
@@ -84,7 +84,6 @@ export function HubScreen() {
       <Tile title="Privacy audit" description="Review account exposure" icon="circle" />
     </View>
     <Text style={{ ...txt(12, colors.ink2), textAlign: 'center', paddingHorizontal: 10 }}>Location is used only when requested. No background tracking.</Text>
-    <TabBar active="Home" />
   </Screen>;
 }
 export function CalculatorScreen(){
@@ -386,7 +385,9 @@ export function PrivacyScreen(){
   return <Screen><Heading title="Privacy audit"/><Card><Title>On-device password check</Title><Field label="Password" placeholder="Enter a password" secureTextEntry value={password} onChangeText={setPassword}/><View style={{backgroundColor:passwordScore<40?colors.warnBg:colors.pink100,padding:12,borderRadius:15}}><Text style={txt(13,colors.ink,type.semibold)}>{password?`Strength: ${strength} · ${passwordScore}/100`:'Enter a password to check its length and character variety.'}</Text></View><Body style={{fontSize:12}}>This check runs only on this phone. It does not compare against breach databases or send the password anywhere. Use a unique password and avoid sharing it.</Body></Card><Card><Title>Exposure checklist</Title><View style={{alignItems:'center',gap:8}}><ScoreRing value={Math.round(checks.length*25)} size={90}/><Body>{checks.length} of {checklist.length} actions marked complete</Body></View>{checklist.map(label=><Toggle key={label} label={label} value={checks.includes(label)} onValueChange={enabled=>setChecks(current=>enabled?[...current,label]:current.filter(item=>item!==label))}/>)}</Card><Card style={{backgroundColor:colors.pink100}}><Text style={txt(14,colors.ink,type.bold)}>A small step helps</Text><Body>Use a unique password and enable two-step verification wherever available.</Body></Card></Screen>
 }
 export function TimerScreen() {
-  const [seconds, setSeconds] = useState(24 * 60 + 35);
+  const params = useLocalSearchParams<{ minutes?: string }>();
+  const requestedMinutes = Number(params.minutes);
+  const [seconds, setSeconds] = useState(Number.isFinite(requestedMinutes) && requestedMinutes > 0 ? requestedMinutes * 60 : 24 * 60 + 35);
   const [expired, setExpired] = useState(false);
   const [running, setRunning] = useState(true);
   const [reminderEnabled, setReminderEnabled] = useState(false);
@@ -717,7 +718,6 @@ export function CircleScreen() {
         <Button title="Simulate help phrase heard (simulation)" small variant="line" onPress={() => triggerSOS('voice')} />
       </Card>
       <Body style={{ textAlign: 'center', fontSize: 12 }}>Contacts stay on this device. No background tracking.</Body>
-      <TabBar active="Circle" />
     </Screen>
     <Modal transparent visible={form} animationType="slide" onRequestClose={() => setForm(false)}>
       <View style={{ flex: 1, backgroundColor: colors.scrim, justifyContent: 'flex-end' }}>

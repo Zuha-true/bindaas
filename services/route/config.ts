@@ -1,0 +1,1 @@
+export const ROUTE_CONFIG = { sampleEveryM: 50, shopBufferM: 100, helpBufferM: 300, targetShopsPerKm: 12, targetHelpPoints: 4, worstHelpGapM: 2000, targetTransitPoints: 3, worstQuietM: 800, targetTurnsPerKm: 6, localUtcOffsetMin: 330 } as const;

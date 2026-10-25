@@ -1,1 +1,1 @@
-export { BreakdownScreen as default } from '../screens';
+export { default } from '../features/route/BreakdownScreen';

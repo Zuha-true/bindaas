@@ -1,9 +1,8 @@
 import { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
 import { router } from 'expo-router';
 import { readAppSettings } from '../services/appSettings';
 import { ROUTES } from '../constants/routes';
-import { colors } from '../theme/tokens';
+import { SplashScreen } from '../screens';
 
 export default function EntryScreen() {
   useEffect(() => {
@@ -18,5 +17,5 @@ export default function EntryScreen() {
     });
     return () => { active = false; };
   }, []);
-  return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.pink50 }}><ActivityIndicator color={colors.ink} /></View>;
+  return <SplashScreen />;
 }

@@ -8,6 +8,7 @@
     "android": "expo run:android",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
+    "verify:route": "node --experimental-strip-types scripts/verify-route-engine.ts",
     "test": "node --experimental-strip-types --test tests/*.test.mjs __tests__/*.test.ts",
     "audit:tadka": "node --experimental-strip-types --test __tests__/tadkaCopy.test.ts"
   },
@@ -40,7 +41,8 @@
     "react-native": "0.88.0",
     "react-native-safe-area-context": "~5.10.1",
     "react-native-screens": "~4.30.0",
-    "react-native-svg": "15.16.0"
+    "react-native-svg": "15.16.0",
+    "react-native-webview": "14.0.1"
   },
   "devDependencies": {
     "@types/react": "~19.3.0",

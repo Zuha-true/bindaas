@@ -11,6 +11,7 @@ import { ROUTES } from '../constants/routes';
 import GlobalTriggers from '../components/GlobalTriggers';
 import { loadNotifications } from '../services/notificationRuntime';
 import { SkinProvider } from '../skins/context';
+import PersistentNav from '../components/PersistentNav';
 
 function useNotificationNavigation() {
   useEffect(() => {
@@ -39,5 +40,5 @@ export default function RootLayout() {
   const [loaded] = useFonts({ DMSerifDisplay_400Regular, DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold, DMSans_700Bold, DMSans_800ExtraBold });
   useNotificationNavigation();
   if (!loaded) return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.pink50 }}><ActivityIndicator color={colors.ink} /></View>;
-  return <SkinProvider><GlobalTriggers /><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.pink50 }, animation: 'slide_from_right' }} /></SkinProvider>;
+  return <SkinProvider><GlobalTriggers /><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.pink50 }, animation: 'slide_from_right' }} /><PersistentNav /></SkinProvider>;
 }
