@@ -6,9 +6,47 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "plugins": ["expo-router"],
-    "experiments": { "typedRoutes": true },
-    "android": { "package": "com.bindaas.safety" }
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Bindaas to use your location when you prepare a location message."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow Bindaas to listen for an opt-in help phrase while the app is open."
+        }
+      ],
+      "expo-notifications",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Bindaas to listen for an opt-in help phrase while the app is open.",
+          "speechRecognitionPermission": "Allow Bindaas to recognize the opt-in help phrase on this device.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.as"
+          ]
+        }
+      ],
+      "expo-asset",
+      "expo-sharing"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "android": {
+      "package": "com.bindaas.safety",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "VIBRATE",
+        "RECORD_AUDIO",
+        "POST_NOTIFICATIONS"
+      ]
+    }
   }
 }

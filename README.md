@@ -1,12 +1,13 @@
 # Bindaas
 
-Bindaas is an Expo Go friendly React Native demo for route activity estimates and foreground-only personal safety tools. The interface uses local state and sample data; external services, SMS delivery, route scoring, platform lookups, and background tracking are not connected.
+Bindaas is an Expo demo for route activity estimates and foreground-only personal safety tools. Contact details, preferences, and a short SOS log are stored on-device. SOS opens the phone’s SMS composer with a prepared message; the app cannot confirm delivery. Route scores and platform checks use sample data, and background tracking is not connected.
 
 ## Tech stack
 
-- Expo SDK 58, React Native 0.86, TypeScript
+- Expo SDK 58, React Native 0.88, TypeScript
 - Expo Router file-based navigation
 - DM Serif Display and DM Sans via `@expo-google-fonts`
+- Expo Location, Sensors, Notifications, Audio, Speech, Haptics, Keep Awake, SMS and File System
 - Lucide icons, `react-native-svg` map placeholder, AsyncStorage for trusted contacts and demo preferences
 - React Native `StyleSheet`; no UI framework
 
@@ -17,7 +18,19 @@ npm install
 npx expo start
 ```
 
-Open the project in Expo Go on Android. For web preview, run `npm run web`.
+Open the project in an SDK-matched Expo Go on Android. Some Expo Go Android versions currently crash when `expo-notifications` loads; Bindaas guards that optional module so the app can still open, but background reminders require a compatible development build. Location, vibration, SMS composer, TTS, and the loud-sound voice fallback can run in Expo Go. The native keyword recognizer (`expo-speech-recognition`) also requires a development build. Voice monitoring is opt-in and foreground-only. On-device recognition depends on the phone having an offline speech model installed.
+
+```sh
+npx expo start -c
+```
+
+To try native keyword recognition, create and run a development build after installing dependencies:
+
+```sh
+npx expo run:android
+```
+
+The ringtone at `assets/sounds/ringtone.wav` is a bundled demo tone. Replace it with a licensed recording if needed. A scheduled call notification opens the in-app incoming-call simulation; Expo Go does not provide full-screen native call UI over the lock screen.
 
 ## Screens and routes
 
@@ -32,6 +45,7 @@ Open the project in Expo Go on Android. For web preview, run `npm run web`.
 | Tools / account check | `/(tabs)/tools` |
 | Calculator discreet mode | `/calculator` |
 | SOS draft | `/sos` |
+| SOS countdown | `/sos-countdown` |
 | Location snapshot | `/live` |
 | Route breakdown | `/route-breakdown` |
 | Safety timer | `/timer` |
