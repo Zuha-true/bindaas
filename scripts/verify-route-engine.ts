@@ -5,7 +5,7 @@ const checks: [string, boolean][] = [];
 const check = (name: string, value: boolean) => checks.push([name, value]);
 check('24/7 is open', statusAt('24/7', new Date()) === 'open');
 check('missing hours are unknown', statusAt(undefined, new Date()) === 'unknown');
-const ranked = rankAnalyses(demoRoutes.map(route => analyseRoute(route, Date.UTC(2026, 0, 5, 15, 30), 'walk')));
+const ranked = rankAnalyses(demoRoutes.map(route => analyseRoute(route, new Date(2026, 0, 6, 15, 30).getTime(), 'walk')));
 check('demo has two routes', ranked.length === 2);
 check('routes have six components', ranked.every(route => route.components.length === 6));
 check('scores are bounded', ranked.every(route => route.score >= 0 && route.score <= 100));

@@ -23,7 +23,7 @@ export async function geocodePlace(text: string, signal?: AbortSignal): Promise<
   return { longitude: coordinates[0], latitude: coordinates[1] };
 }
 
-type RoutingResponse = { features?: Array<{ geometry?: { coordinates?: [number, number][] }; properties?: { time?: number; distance?: number; legs?: Array<{ steps?: Array<{ distance?: number; road_class?: string; turn_type?: string }> }> } }> };
+type RoutingResponse = { features?: Array<{ geometry?: { type?: string; coordinates?: [number, number][] | [number, number][][] }; properties?: { time?: number; distance?: number; legs?: Array<{ steps?: Array<{ distance?: number; road_class?: string; turn_type?: string }> }> } }> };
 type PlacesResponse = { features?: Array<{ properties?: Record<string, unknown>; geometry?: { coordinates?: [number, number] } }> };
 
 function routeMode(mode: TravelMode) { return mode === 'scooter' ? 'scooter' : mode === 'drive' ? 'drive' : 'walk'; }
@@ -39,7 +39,10 @@ export async function fetchLiveRoutes(from: Point, to: Point, mode: TravelMode, 
   if (!features.length) throw new Error('No route found between those places.');
   const routes: RouteData[] = features.slice(0, 3).map((feature, index) => {
     const props = feature.properties || {};
-    const coordinates = (feature.geometry?.coordinates || []).map(([longitude, latitude]) => ({ latitude, longitude }));
+    const geometry = feature.geometry;
+    const raw = geometry?.coordinates || [];
+    const line = geometry?.type === 'MultiLineString' ? (raw as [number, number][][]).flat() : raw as [number, number][];
+    const coordinates = line.map(([longitude, latitude]) => ({ latitude, longitude }));
     const steps: RouteStep[] = (props.legs || []).flatMap(leg => (leg.steps || []).map(step => ({ distanceM: step.distance || 0, roadClass: step.road_class, turnWeight: turnWeight(step.turn_type) })));
     const distanceM = props.distance || steps.reduce((sum, step) => sum + step.distanceM, 0);
     return { id: `live-${index}`, name: index === 0 ? 'Balanced route' : `Alternative ${index}`, coordinates, distanceM, durationMin: Math.max(1, Math.round((props.time || 60) / 60)), steps, places: [] };
@@ -57,8 +60,11 @@ function classify(properties: Record<string, unknown>) {
 
 async function fetchPlacesAlongRoute(route: RouteData, signal?: AbortSignal) {
   if (!route.coordinates.length) return [];
-  const response = await fetch(`${api.replace('/v1', '')}/places?apiKey=${key()}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ categories: ['commercial', 'catering', 'entertainment', 'healthcare', 'service', 'public_transport', 'railway'], filter: { type: 'polyline', geometry: { type: 'LineString', coordinates: route.coordinates.map(point => [point.longitude, point.latitude]) }, buffer: 250 }, limit: 500, lang: 'en' }) });
-  if (!response.ok) return [];
+  const response = await fetch(`https://api.geoapify.com/v2/places?apiKey=${key()}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal, body: JSON.stringify({ categories: ['commercial', 'catering', 'entertainment', 'healthcare', 'service', 'public_transport'], filter: { type: 'polyline', geometry: { type: 'LineString', coordinates: route.coordinates.map(point => [point.longitude, point.latitude]) }, buffer: 250 }, limit: 500, lang: 'en' }) });
+  if (!response.ok) {
+    console.warn(`Geoapify Places request failed (${response.status}).`);
+    return [];
+  }
   const data = await response.json() as PlacesResponse;
   return (data.features || []).flatMap((feature, index) => { const properties = feature.properties || {}; const coordinates = feature.geometry?.coordinates; if (!coordinates) return []; const classification = classify(properties); const name = String(properties.name || properties.address_line1 || `${classification.kind} point ${index + 1}`); const openingHours = typeof properties.opening_hours === 'string' ? properties.opening_hours : typeof (properties.datasource as { raw?: { opening_hours?: unknown }}|undefined)?.raw?.opening_hours === 'string' ? String((properties.datasource as { raw: { opening_hours: string }}).raw.opening_hours) : undefined; return [{ id: String(properties.place_id || `${route.id}-place-${index}`), name, kind: classification.kind, subtype: classification.subtype, position: { longitude: coordinates[0], latitude: coordinates[1] }, openingHours }]; });
 }
