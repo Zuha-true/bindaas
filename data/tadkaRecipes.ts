@@ -34,7 +34,7 @@ export const tadkaCopy = {
   accountChecks: ['Kitchen is brand new', 'Only a few recipes posted', 'Asks for payment or pictures', 'Cover photo looks borrowed', 'Rushes you to order', 'Wants to take the order elsewhere'],
   accountResult: '7 of 9 flavours found', accountReassurance: 'These are tasting notes, not proof. Only the platform can confirm who owns a kitchen.',
   accountNext: ['Do not pay or send pictures', 'Check the cover photo', 'Save to Recipe Box', 'Flag it on the platform', 'Tell the original chef'],
-  accountFingerprint: 'Recipe seal 9f3a…c71e', accountHelpDesk: ['Kitchen help desk', '1930 · cybercrime.gov.in'],
+  accountFingerprint: 'Recipe seal 9f3a…c71e', accountHelpDesk: 'Kitchen help desk',
   jarWarning: 'This lid has been opened before. Pick a new one.', jarCount: '3 of 10 jars are open',
   checkinLabels: ['Evening chai after 9 PM', 'Chai is boiling over', 'Chai left to cool', 'Gas is running low'],
   checkinMessage: 'It looks like the chai may have boiled over.', checkinTime: 'Chai boils over in 42s', checkinToggle: 'Make the chai boil over (demo)',
@@ -44,6 +44,12 @@ export const tadkaCopy = {
   shareReady: 'Pin-drop pack', shareState: 'Ready', shareReminder: 'Remind me to stir every 5 min', shareTracker: 'Live pulao tracker', shareSoon: 'Coming soon',
   pantryStart: 'Start here: seal your number and use a new lid for each jar.', recentStarted: 'started', recentCancelled: 'taken off heat',
   disclosure: 'Message opened for you to send. Nothing is sent until you press send.',
+  editProfile: 'Edit chef profile', support: 'Kitchen help desk', logout: 'Sign out', supportOpen: 'Open help desk',
+  logoutNotice: 'Saved bowls and notes stay here unless you choose to clear them.',
+  logoutErase: 'Sign out and clear the pantry on this phone', logoutEraseTitle: 'Clear the pantry?',
+  logoutEraseMessage: 'This clears your chef profile, bowls, tasting notes, and settings from this phone.', logoutClear: 'Clear pantry', logoutCancel: 'Cancel',
+  saveProfile: 'Save chef profile', profileFootnote: 'Your chef details stay on this phone.',
+  loginTitle: 'Back to the kitchen', loginContinue: 'Open the kitchen', loginSetup: 'Set up your kitchen',
 } as const;
 
 export const TADKA_BANNED = ['bindaas','safety','safe','emergency','sos','alert','panic','police','fake','scam','impersonat','harass','stalk','location','tracking','contacts','trusted','evidence','shield','siren'];
