@@ -1,21 +1,20 @@
 import { useEffect } from 'react';
 import { router } from 'expo-router';
-import { readAppSettings } from '../services/appSettings';
 import { ROUTES } from '../constants/routes';
 import { SplashScreen } from '../screens';
 
 export default function EntryScreen() {
   useEffect(() => {
     let active = true;
-    void Promise.all([readAppSettings(), import('@react-native-async-storage/async-storage')]).then(async ([settings, storage]) => {
-      if (!active) return;
-      const profile = await storage.default.getItem('bindaas:profile:v1');
-      if (!active) return;
-      if (settings.disguise === 'cooking') router.replace(ROUTES.tadka);
-      else if (settings.disguise === 'calculator') router.replace(ROUTES.calculator);
-      else router.replace(profile ? ROUTES.hub : ROUTES.splash);
+    // Discreet Mode never hijacks launch: the calculator/cooking disguise is reached from
+    // the hub's "Lock now" button or Settings, so a returning user always lands on the hub.
+    void Promise.all([
+      import('@react-native-async-storage/async-storage').then(storage => storage.default.getItem('bindaas:profile:v1')),
+      new Promise(resolve => setTimeout(resolve, 1200)),
+    ]).then(([profile]) => {
+      if (active) router.replace(profile ? ROUTES.hub : ROUTES.splash);
     });
     return () => { active = false; };
   }, []);
-  return <SplashScreen />;
+  return <SplashScreen cta={false} />;
 }
