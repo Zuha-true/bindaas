@@ -14,7 +14,7 @@ test('Tadka screen copy, recipe names, blurbs, and notifications avoid the disal
 });
 
 test('the sensitive help desk details exist only under the help desk copy key', () => {
-  assert.deepEqual(tadkaCopy.accountHelpDesk, ['Kitchen help desk', '1930 · cybercrime.gov.in']);
-  const otherCopy = Object.entries(tadkaCopy).filter(([key]) => key !== 'accountHelpDesk').map(([, value]) => JSON.stringify(value)).join(' ');
-  assert.equal(otherCopy.includes('1930') || otherCopy.includes('cybercrime.gov.in'), false);
+  assert.equal(tadkaCopy.accountHelpDesk, 'Kitchen help desk');
+  const tadkaCopyValues = Object.values(tadkaCopy).map(value => JSON.stringify(value)).join(' ');
+  assert.equal(tadkaCopyValues.includes('1930') || tadkaCopyValues.includes('cybercrime.gov.in'), false);
 });

@@ -30,6 +30,9 @@ import { CHECKLIST_ITEMS, type AnalysisInput, type AnalysisResult, type Checklis
 import { createAccountCheck, deleteAccountCheck, readAccountChecks, readLatestAccountCheck, type SavedAccountCheck } from './services/accountChecks';
 import { deleteEvidence, evidenceFromCheck, readEvidence, saveEvidence, verifyEvidence, type EvidenceNote } from './services/evidence';
 import { readAppSettings, setDisguiseMode, writeAppSettings, type DisguiseMode } from './services/appSettings';
+import { readProfile, saveProfile } from './services/profile';
+import { validateProfile } from './services/profileValidation';
+import { SettingsActions } from './components/SettingsActions';
 
 const go=(path:AppRoute)=>router.push(path as Href);
 const indicators = ['Similar name', 'Lookalike letters', 'Separator changed', 'New account', 'Few posts', 'Copied picture', 'Urgent tone'];
@@ -47,8 +50,10 @@ export function OnboardingScreen(){
 export function SignupScreen(){
   const [name,setName]=useState(''); const [phone,setPhone]=useState('');
   const createAccount=async()=>{
+    const profileError=validateProfile({name,phone,email:''});if(profileError){Alert.alert('Check your details',profileError);return;}
     if(!name.trim()||!/^\+?[\d\s()-]{7,}$/.test(phone.trim())){Alert.alert('Check your details','Enter your name and a valid phone number.');return;}
-    await AsyncStorage.setItem('bindaas:profile:v1',JSON.stringify({name:name.trim(),phone:phone.trim()}));
+    await saveProfile({name:name.trim(),phone:phone.trim(),email:'',photoUri:null});
+    await AsyncStorage.setItem('session:v1','active');
     router.replace(ROUTES.hub);
   };
   return <Screen><HeaderBand><Heading title="Create your account" back/><Text style={{fontFamily:type.display,fontSize:28,color:colors.ink,marginTop:26}}>A little about you</Text></HeaderBand><Field label="Name" placeholder="Your name" value={name} onChangeText={setName}/><Field label="Phone number" placeholder="+91" keyboardType="phone-pad" value={phone} onChangeText={setPhone}/><Body style={{fontSize:13}}>This local demo stores your profile on this phone only. It has no account authentication. SOS prepares a message for you to review; Bindaas cannot confirm delivery.</Body><Button title="Create local profile" onPress={()=>void createAccount()}/><Text style={{textAlign:'center',...txt(14,colors.ink2)}}>or</Text><Button title="Continue with Google" variant="line" onPress={()=>Alert.alert('Google sign-in unavailable','This demo has no connected sign-in provider. Create a local profile to continue.')}/><Pressable accessibilityRole="button" onPress={()=>go(ROUTES.hub)}><Text style={{textAlign:'center',...txt(14,colors.ink2,type.semibold)}}>Continue as demo user</Text></Pressable></Screen>
@@ -59,7 +64,7 @@ export function HubScreen() {
   const [profileName,setProfileName]=useState('Meera');
   useFocusEffect(useCallback(() => {
     void readTrustedContacts().then(setContacts);
-    void AsyncStorage.getItem('bindaas:profile:v1').then(raw=>{if(raw)try{const profile=JSON.parse(raw) as {name?:string};if(profile.name)setProfileName(profile.name.split(' ')[0]);}catch{}});
+    void readProfile().then(profile=>{if(profile?.name)setProfileName(profile.name.split(' ')[0]);});
   }, []));
   return <Screen>
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -764,13 +769,16 @@ export function SettingsScreen() {
   useEffect(() => {
     void readAppSettings().then(value => setMode(value.disguise === 'calculator' ? 'Calculator' : value.disguise === 'cooking' ? 'Cooking app' : 'Bindaas'));
     void AsyncStorage.getItem('route:departure-demo:v1').then(value => setDemoDeparture(value === 'true'));
-    void AsyncStorage.getItem('bindaas:profile:v1').then(raw=>{if(raw)try{const value=JSON.parse(raw) as {name?:string;phone?:string};if(value.name)setProfile({name:value.name,phone:value.phone});}catch{}});
+    void readProfile().then(value=>{if(value)setProfile({name:value.name,phone:value.phone});});
     void AsyncStorage.multiGet(['unlock-pin:v1', 'sos-code:v1']).then(([savedPin, savedCode]) => {
       if (savedPin[1]) setPin(savedPin[1]);
       if (savedCode[1]) setCode(savedCode[1]);
     });
   }, []);
-  useFocusEffect(useCallback(() => { void readSosLog().then(setLog); }, []));
+  useFocusEffect(useCallback(() => {
+    void readSosLog().then(setLog);
+    void readProfile().then(value => { if (value) setProfile({ name: value.name, phone: value.phone }); });
+  }, []));
   const chooseMode = (value: string) => {
     setMode(value);
     const disguise: DisguiseMode = value === 'Calculator' ? 'calculator' : value === 'Cooking app' ? 'cooking' : 'none';
@@ -812,6 +820,7 @@ export function SettingsScreen() {
       {log.slice(0, 5).map((entry, index) => <Row key={`${entry.time}-${index}`} title={`${entry.source} · ${entry.outcome}`} sub={new Date(entry.time).toLocaleString()} />)}
     </Card>
     <Button title="Set up a trip check-in reminder" variant="line" onPress={()=>go(ROUTES.live)} />
+    <SettingsActions />
   </Screen>;
 }
 export function CookingScreen(){const [query,setQuery]=useState('');const [category,setCategory]=useState('All');const [detail,setDetail]=useState<(typeof recipes)[number]|null>(null);const filtered=useMemo(()=>recipes.filter(r=>r.title.toLowerCase().includes(query.toLowerCase())&&(category==='All'||r.category===category)),[query,category]);const search=(text:string)=>{if(text==='2468'){go(ROUTES.hub);return}if(text==='1122'){go(ROUTES.sos);return}setQuery(text);setDetail(null)};return <Screen><View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}><View><Text style={txt(14,colors.ink2)}>Good evening</Text><Text style={{fontFamily:type.display,fontSize:42,color:colors.orange}}>Tadka</Text></View><Utensils color={colors.orange} size={26}/></View><View style={{height:54,borderRadius:18,backgroundColor:colors.white,borderColor:colors.cookingLine,borderWidth:1,flexDirection:'row',alignItems:'center',paddingHorizontal:14,gap:10}}><Search color={colors.muted}/><TextInput value={query} onChangeText={setQuery} onSubmitEditing={e=>search(e.nativeEvent.text)} returnKeyType="search" placeholder="Search recipes" placeholderTextColor={colors.muted} style={{flex:1,fontFamily:type.ui,color:colors.ink}}/></View><View style={{flexDirection:'row',flexWrap:'wrap',gap:8}}>{['All','Breakfast','Drinks','Desserts'].map(x=><Chip key={x} active={category===x} onPress={()=>setCategory(x)}>{x}</Chip>)}</View>{detail?<Card><Pressable accessibilityRole="button" accessibilityLabel="Back to recipes" onPress={()=>setDetail(null)}><Text style={txt(14,colors.orange,type.bold)}>‹ Back to recipes</Text></Pressable><View style={{height:130,backgroundColor:detail.color,borderRadius:18}}/><Title>{detail.title}</Title><Label>Ingredients</Label><Body>{detail.ingredients}</Body><Label>Method</Label><Body>{detail.steps}</Body></Card>:<><Title>Tonight's picks</Title>{filtered.map(r=><Pressable accessibilityRole="button" accessibilityLabel={`Open recipe: ${r.title}`} key={r.title} onPress={()=>setDetail(r)} style={{backgroundColor:colors.white,borderRadius:22,overflow:'hidden',...shadow}}><View pointerEvents="none" style={{height:112,backgroundColor:r.color}}/><View pointerEvents="none" style={{padding:15,gap:5}}><Text style={txt(17,colors.ink,type.bold)}>{r.title}</Text><Text style={txt(13,colors.ink2)}>{r.meta}</Text></View></Pressable>)}{filtered.length===0&&<Body>No recipes match this search and category.</Body>}</>}</Screen>}
