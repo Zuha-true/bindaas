@@ -10,6 +10,7 @@ import { colors } from '../theme/tokens';
 import { ROUTES } from '../constants/routes';
 import GlobalTriggers from '../components/GlobalTriggers';
 import { loadNotifications } from '../services/notificationRuntime';
+import { SkinProvider } from '../skins/context';
 
 function useNotificationNavigation() {
   useEffect(() => {
@@ -24,6 +25,7 @@ function useNotificationNavigation() {
         const url = response?.notification.request.content.data?.url;
         if (url === ROUTES.live) router.push(ROUTES.live);
         if (url === ROUTES.incomingCall) router.push(ROUTES.incomingCall);
+        if (typeof url === 'string' && url.startsWith('/(tadka)/')) router.push(url as never);
       };
       openRoute(notifications.getLastNotificationResponse());
       const subscription = notifications.addNotificationResponseReceivedListener(openRoute);
@@ -37,5 +39,5 @@ export default function RootLayout() {
   const [loaded] = useFonts({ DMSerifDisplay_400Regular, DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold, DMSans_700Bold, DMSans_800ExtraBold });
   useNotificationNavigation();
   if (!loaded) return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.pink50 }}><ActivityIndicator color={colors.ink} /></View>;
-  return <><GlobalTriggers /><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.pink50 }, animation: 'slide_from_right' }} /></>;
+  return <SkinProvider><GlobalTriggers /><Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.pink50 }, animation: 'slide_from_right' }} /></SkinProvider>;
 }

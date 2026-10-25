@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ROUTES } from '../constants/routes';
 import { loadNotifications } from './notificationRuntime';
+import { readAppSettings } from './appSettings';
 
 export type FakeCallLanguage = 'en' | 'hi';
 export type FakeCallVoiceGender = 'female' | 'male';
@@ -56,8 +57,10 @@ export async function scheduleFakeCall(delaySeconds: number, callerName: string)
   if (!notifications) throw new Error('Notifications are unavailable in this Expo Go runtime.');
   const existing = await AsyncStorage.getItem(SCHEDULED_KEY);
   if (existing) await notifications.cancelScheduledNotificationAsync(existing);
+  const cooking = (await readAppSettings()).disguise === 'cooking';
+  const savedSettings = await readFakeCallSettings();
   const id = await notifications.scheduleNotificationAsync({
-    content: { title: 'Incoming call', body: `${callerName} is calling`, data: { url: ROUTES.incomingCall } },
+    content: { title: cooking ? `${callerName} is calling` : 'Incoming call', body: `${callerName} is calling`, sound: savedSettings.ringtoneEnabled ? 'default' : false, data: { url: cooking ? `/(tadka)/feature?feature=ringing&caller=${encodeURIComponent(callerName)}` : ROUTES.incomingCall } },
     trigger: { type: notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: delaySeconds },
   });
   await AsyncStorage.setItem(SCHEDULED_KEY, id);

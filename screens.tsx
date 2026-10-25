@@ -8,9 +8,10 @@ import Constants from 'expo-constants';
 import * as Clipboard from 'expo-clipboard';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
+import { StatusBar } from 'expo-status-bar';
 import { AudioModule, useAudioPlayer } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
-import { Activity, Bell, Heart, Phone, Search, ShieldCheck, Siren, Utensils, X } from 'lucide-react-native';
+import { Activity, Bell, Calculator as CalculatorIcon, Delete, Heart, Phone, RotateCcwClock, Search, ShieldCheck, Siren, Utensils, X } from 'lucide-react-native';
 import { Button, Body, Card, Chip, Field, Heading, HeaderBand, Label, MapPlaceholder, ScoreRing, Screen, TabBar, Tile, Title, Toggle } from './components/ui';
 import { colors, shadow, type } from './theme/tokens';
 import { ROUTES, AppRoute } from './constants/routes';
@@ -28,6 +29,7 @@ import { OnboardingIllustration } from './components/OnboardingIllustration';
 import { CHECKLIST_ITEMS, type AnalysisInput, type AnalysisResult, type ChecklistKey, type ChecklistValues, type Platform } from './services/lookalike';
 import { createAccountCheck, deleteAccountCheck, readAccountChecks, readLatestAccountCheck, type SavedAccountCheck } from './services/accountChecks';
 import { deleteEvidence, evidenceFromCheck, readEvidence, saveEvidence, verifyEvidence, type EvidenceNote } from './services/evidence';
+import { readAppSettings, setDisguiseMode, writeAppSettings, type DisguiseMode } from './services/appSettings';
 
 const go=(path:AppRoute)=>router.push(path as Href);
 const indicators = ['Similar name', 'Lookalike letters', 'Separator changed', 'New account', 'Few posts', 'Copied picture', 'Urgent tone'];
@@ -86,13 +88,38 @@ export function HubScreen() {
   </Screen>;
 }
 export function CalculatorScreen(){
-  const [value,setValue]=useState('0');const [pin,setPin]=useState('2468');const [code,setCode]=useState('1122');
+  const [value,setValue]=useState('0');const [pin,setPin]=useState('2468');const [code,setCode]=useState('1122');const [calculationHistory,setCalculationHistory]=useState<string[]>([]);
   useEffect(()=>{AsyncStorage.multiGet(['unlock-pin:v1','sos-code:v1']).then(([p,c])=>{if(p[1])setPin(p[1]);if(c[1])setCode(c[1])})},[]);
-  const add=(key:string)=>{if(key==='='){if(value===pin){go(ROUTES.hub);return}if(value===code){go(ROUTES.sos);return}setValue(safeMath(value));return}if(key==='±'){setValue(current=>current==='Error'?'0':current.startsWith('-')?current.slice(1):`-${current}`);return}if(key==='%'){setValue(current=>current==='Error'?'0':safeMath(`(${current})/100`));return}setValue(current=>current==='0'||current==='Error'?key:current+key)};
-  const keys=['AC','±','%','÷','7','8','9','×','4','5','6','−','1','2','3','+','0','.','='];
-  return <Screen dark scroll={false}><View style={{flex:1,justifyContent:'flex-end',gap:14,paddingHorizontal:10,paddingBottom:8}}>
-    <Text accessibilityLabel={`Calculator display ${value}`} numberOfLines={1} adjustsFontSizeToFit style={{fontFamily:type.ui,fontSize:54,color:colors.white,textAlign:'right',minHeight:76}}>{value}</Text>
-    <View style={{gap:10,marginRight:isExpoGo?64:0}}>{Array.from({length:5},(_,row)=><View key={row} style={{flexDirection:'row',justifyContent:'space-between',gap:9}}>{keys.slice(row*4,row*4+4).map(k=><Pressable accessibilityRole="button" accessibilityLabel={k==='AC'?'Clear':k==='='?'Calculate':k} key={k} onPress={()=>k==='AC'?setValue('0'):add(k)} style={{flex:k==='0'?2:1,height:68,borderRadius:40,backgroundColor:['÷','×','−','+','='].includes(k)?'#F5A49F':['AC','±','%'].includes(k)?'#A66A5C':'#543326',alignItems:'center',justifyContent:'center'}}><Text style={{...txt(25,['÷','×','−','+','='].includes(k)?colors.ink:colors.white,type.medium)}}>{k}</Text></Pressable>)}</View>)}</View>
+  const add=(key:string)=>{
+    if(key==='='){
+      if(value===pin){go(ROUTES.hub);return}
+      if(value===code){go(ROUTES.sos);return}
+      const result=safeMath(value);
+      if(result!==value)setCalculationHistory(items=>[`${value} = ${result}`,...items].slice(0,12));
+      setValue(result);return;
+    }
+    if(key==='⌫'){setValue(current=>current==='Error'||current.length<=1?'0':current.slice(0,-1));return;}
+    if(key==='±'){setValue(current=>{if(current==='Error')return '0';const match=current.match(/(-?\d*\.?\d+)$/);if(!match)return current==='0'?'-0':`${current}-`;const token=match[0];return current.slice(0,-token.length)+(token.startsWith('-')?token.slice(1):`-${token}`)});return;}
+    if(key==='%'){setValue(current=>current==='Error'?'0':safeMath(`(${current})/100`));return;}
+    setValue(current=>current==='0'||current==='Error'?key:current+key);
+  };
+  const keys=['C','×','÷','⌫','7','8','9','−','4','5','6','+','1','2','3','%','±','0','.','='];
+  const operations=new Set(['×','÷','−','+','%']);
+  const utility=new Set(['C','⌫']);
+  return <Screen dark scroll={false} backgroundColor="#000"><StatusBar style="light"/><View style={{flex:1,paddingHorizontal:20,paddingTop:12,paddingBottom:22,backgroundColor:'#000'}}>
+    <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Calculation history" onPress={()=>Alert.alert('Calculation history',calculationHistory.length?calculationHistory.slice(0,8).join('\n'):'No calculations yet.')} style={{width:54,height:54,borderRadius:28,backgroundColor:'#29292B',alignItems:'center',justifyContent:'center'}}><RotateCcwClock size={29} color="#D8D8DA"/></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Clear current calculation" onPress={()=>setValue('0')} style={{width:54,height:54,borderRadius:28,backgroundColor:'#29292B',alignItems:'center',justifyContent:'center'}}><CalculatorIcon size={27} color="#D8D8DA"/></Pressable>
+    </View>
+    <View style={{flex:1,justifyContent:'flex-end',paddingBottom:22}}>
+      <Text accessibilityLabel={`Calculator display ${value}`} numberOfLines={1} adjustsFontSizeToFit style={{fontFamily:type.ui,fontSize:54,color:'#F5F5F7',textAlign:'right',minHeight:72}}>{value==='0'?'':value}</Text>
+    </View>
+    <View style={{gap:10}}>{Array.from({length:5},(_,row)=><View key={row} style={{flexDirection:'row',gap:10}}>{keys.slice(row*4,row*4+4).map(key=>{
+      const isEquals=key==='=';const isOperation=operations.has(key);const isUtility=utility.has(key);
+      return <Pressable accessibilityRole="button" accessibilityLabel={key==='C'?'Clear':key==='⌫'?'Delete last digit':key==='='?'Calculate':key==='±'?'Change sign':key} key={key} onPress={()=>key==='C'?setValue('0'):add(key)} style={{flex:1,height:80,borderRadius:40,backgroundColor:isEquals?'#FF5F0A':isOperation||isUtility?'#4A4A4C':'#242426',alignItems:'center',justifyContent:'center'}}>
+        {key==='⌫'?<Delete size={30} color="#F5F5F7"/>:<Text style={{fontFamily:type.ui,fontSize:key==='±'?31:34,color:'#F5F5F7'}}>{key}</Text>}
+      </Pressable>;
+    })}</View>)}</View>
   </View></Screen>
 }
 function safeMath(expr:string){try{const clean=expr.replaceAll('×','*').replaceAll('÷','/').replaceAll('−','-').replace(/[^0-9.+*/()%\-]/g,'');if(!clean||/[+*/.-]$/.test(clean))return expr;const tokens=clean.match(/\d+(?:\.\d+)?|[()+*/%-]/g)||[];let i=0;const primary=():number=>{const t=tokens[i++];if(t==='('){const n=sum();i++;return n}if(t==='-')return-primary();return Number(t)};const product=():number=>{let n=primary();while(['*','/','%'].includes(tokens[i])){const op=tokens[i++],b=primary();n=op==='*'?n*b:op==='/'?n/b:n%b}return n};const sum=():number=>{let n=product();while(tokens[i]==='+'||tokens[i]==='-'){const op=tokens[i++],b=product();n=op==='+'?n+b:n-b}return n};const out=sum();return Number.isFinite(out)?String(Number(out.toFixed(8))):'Error'}catch{return expr}}
@@ -735,7 +762,7 @@ export function SettingsScreen() {
   const [log, setLog] = useState<SosLogEntry[]>([]);
   const { shakeEnabled, voiceEnabled, voiceListening, voiceTier } = useTriggerStatus();
   useEffect(() => {
-    void AsyncStorage.getItem('app-start-mode:v1').then(value => { if (value === 'Calculator' || value === 'Bindaas') setMode(value); else if (value === 'Cooking app') { setMode('Bindaas'); void AsyncStorage.setItem('app-start-mode:v1', 'Bindaas'); } });
+    void readAppSettings().then(value => setMode(value.disguise === 'calculator' ? 'Calculator' : value.disguise === 'cooking' ? 'Cooking app' : 'Bindaas'));
     void AsyncStorage.getItem('route:departure-demo:v1').then(value => setDemoDeparture(value === 'true'));
     void AsyncStorage.getItem('bindaas:profile:v1').then(raw=>{if(raw)try{const value=JSON.parse(raw) as {name?:string;phone?:string};if(value.name)setProfile({name:value.name,phone:value.phone});}catch{}});
     void AsyncStorage.multiGet(['unlock-pin:v1', 'sos-code:v1']).then(([savedPin, savedCode]) => {
@@ -744,7 +771,11 @@ export function SettingsScreen() {
     });
   }, []);
   useFocusEffect(useCallback(() => { void readSosLog().then(setLog); }, []));
-  const chooseMode = (value: string) => { setMode(value); void AsyncStorage.setItem('app-start-mode:v1', value); };
+  const chooseMode = (value: string) => {
+    setMode(value);
+    const disguise: DisguiseMode = value === 'Calculator' ? 'calculator' : value === 'Cooking app' ? 'cooking' : 'none';
+    void setDisguiseMode(disguise).then(() => router.replace(disguise === 'cooking' ? ROUTES.tadka as Href : disguise === 'calculator' ? ROUTES.calculator as Href : ROUTES.hub as Href));
+  };
   const changeVoice = (enabled: boolean) => {
     if (!enabled) { void setVoiceEnabled(false); return; }
     Alert.alert('Microphone access', 'Voice help listens only while Bindaas is open. Audio is not stored or uploaded.', [
@@ -760,9 +791,9 @@ export function SettingsScreen() {
     <Card><Row title={profile.name} sub={profile.phone??'Local demo profile'} right="" /></Card>
     <Card>
       <Title>Discreet Mode</Title><Body style={{ fontSize: 13 }}>Open the app as</Body>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{['Bindaas', 'Calculator'].map(value => <Chip key={value} active={mode === value} onPress={() => chooseMode(value)}>{value}</Chip>)}</View><Body style={{fontSize:12}}>Calculator disguise is available. Cooking disguise is planned for a later update.</Body>
-      <Field label="Unlock PIN" placeholder="2468" keyboardType="number-pad" value={pin} onChangeText={value => { setPin(value); void AsyncStorage.setItem('unlock-pin:v1', value); }} />
-      <Field label="SOS code" placeholder="1122" keyboardType="number-pad" value={code} onChangeText={value => { setCode(value); void AsyncStorage.setItem('sos-code:v1', value); }} />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{['Bindaas', 'Calculator', 'Cooking app'].map(value => <Chip key={value} active={mode === value} onPress={() => chooseMode(value)}>{value}</Chip>)}</View><Body style={{fontSize:12}}>The app name and icon remain visible in your phone's settings.</Body>
+      <Field label="Unlock PIN" placeholder="2468" keyboardType="number-pad" value={pin} onChangeText={value => { setPin(value); void readAppSettings().then(settings => writeAppSettings({ ...settings, pin: value })); }} />
+      <Field label="SOS code" placeholder="1122" keyboardType="number-pad" value={code} onChangeText={value => { setCode(value); void readAppSettings().then(settings => writeAppSettings({ ...settings, sosCode: value })); }} />
       <Body style={{ fontSize: 12 }}>Demo codes: PIN 2468 · SOS 1122</Body>
       <View style={{ backgroundColor: colors.warnBg, borderRadius: 14, padding: 12 }}><Text style={txt(12, colors.warn)}>Discreet Mode changes what appears on screen. The app name and icon are still visible in your phone's settings.</Text></View>
     </Card>

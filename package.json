@@ -8,7 +8,8 @@
     "android": "expo run:android",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/lookalike.test.mjs"
+    "test": "node --experimental-strip-types --test tests/*.test.mjs __tests__/*.test.ts",
+    "audit:tadka": "node --experimental-strip-types --test __tests__/tadkaCopy.test.ts"
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",

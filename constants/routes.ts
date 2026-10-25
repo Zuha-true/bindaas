@@ -2,6 +2,7 @@ import type { Href } from 'expo-router';
 
 export const ROUTES = {
   onboarding: '/onboarding',
+  splash: '/splash',
   signup: '/signup',
   hub: '/(tabs)/hub',
   route: '/route',
@@ -23,6 +24,11 @@ export const ROUTES = {
   areYouOk: '/are-you-ok',
   settings: '/settings',
   cooking: '/cooking',
+  tadka: '/(tadka)/feed' as Href,
+  tadkaBox: '/(tadka)/box',
+  tadkaPantry: '/(tadka)/pantry',
+  tadkaRecipe: '/(tadka)/recipe/[slug]' as Href,
+  tadkaFeature: '/(tadka)/feature',
 } as const satisfies Record<string, Href>;
 
 export type AppRoute = (typeof ROUTES)[keyof typeof ROUTES];

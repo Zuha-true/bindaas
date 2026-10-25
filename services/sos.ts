@@ -7,6 +7,7 @@ import { Share, ToastAndroid, Vibration, Platform } from 'react-native';
 import { Href, router } from 'expo-router';
 import { ROUTES } from '../constants/routes';
 import { readTrustedContacts } from './contacts';
+import { readAppSettings } from './appSettings';
 
 export type SosSource = 'button' | 'shake' | 'voice' | 'timer' | 'deviation';
 export type SosOutcome = 'cancelled' | 'opened' | 'failed';
@@ -29,7 +30,7 @@ export function triggerSOS(source: SosSource): void {
   activeSource = source;
   void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => undefined);
   Vibration.vibrate([0, 250, 120, 250, 120, 500]);
-  router.push(ROUTES.sosCountdown as Href);
+  void readAppSettings().then(settings => router.push((settings.disguise === 'cooking' ? '/(tadka)/feature?feature=countdown&auto=true' : ROUTES.sosCountdown) as Href));
 }
 
 export function getActiveSosSource(): SosSource { return activeSource; }

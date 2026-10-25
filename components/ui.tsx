@@ -19,10 +19,11 @@ import { colors, radii, shadow, type } from '../theme/tokens';
 import { ROUTES, AppRoute } from '../constants/routes';
 import { triggerSOS } from '../services/sos';
 
-export function Screen({ children, dark = false, scroll = true }: PropsWithChildren<{ dark?: boolean; scroll?: boolean }>) {
-  const body = <View style={[styles.content, dark && styles.dark]}>{children}</View>;
+export function Screen({ children, dark = false, scroll = true, backgroundColor }: PropsWithChildren<{ dark?: boolean; scroll?: boolean; backgroundColor?: string }>) {
+  const override = backgroundColor ? { backgroundColor } : undefined;
+  const body = <View style={[styles.content, dark && styles.dark, override]}>{children}</View>;
   return (
-    <SafeAreaView style={[styles.safe, dark && styles.dark]} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.safe, dark && styles.dark, override]} edges={['top', 'bottom']}>
       {scroll ? <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">{body}</ScrollView> : body}
     </SafeAreaView>
   );

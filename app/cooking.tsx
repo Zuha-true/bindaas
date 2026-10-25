@@ -1,1 +1,1 @@
-export { CookingScreen as default } from '../screens';
+export { TadkaFeed as default } from '../tadka/TadkaScreens';
