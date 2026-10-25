@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert, AppState, Image, Linking, Modal, Pressable, Share, Text, TextInput, Vibration, View } from 'react-native';
+import { Alert, AppState, Image, Linking, Modal, Pressable, Share, Text, TextInput, useWindowDimensions, Vibration, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Href, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
 import * as SMS from 'expo-sms';
@@ -101,6 +102,8 @@ export function HubScreen() {
 }
 export function CalculatorScreen(){
   const [value,setValue]=useState('0');const [pin,setPin]=useState('2468');const [code,setCode]=useState('1122');const [calculationHistory,setCalculationHistory]=useState<string[]>([]);
+  const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   useEffect(()=>{AsyncStorage.multiGet(['unlock-pin:v1','sos-code:v1']).then(([p,c])=>{if(p[1])setPin(p[1]);if(c[1])setCode(c[1])})},[]);
   const add=(key:string)=>{
     if(key==='='){
@@ -115,24 +118,48 @@ export function CalculatorScreen(){
     if(key==='%'){setValue(current=>current==='Error'?'0':safeMath(`(${current})/100`));return;}
     setValue(current=>current==='0'||current==='Error'?key:current+key);
   };
-  const keys=['C','×','÷','⌫','7','8','9','−','4','5','6','+','1','2','3','%','±','0','.','='];
+  const keys=['C','±','%','÷','7','8','9','×','4','5','6','−','1','2','3','+','⌫','0','.','='];
   const operations=new Set(['×','÷','−','+','%']);
   const utility=new Set(['C','⌫']);
-  return <Screen dark scroll={false} backgroundColor="#000"><StatusBar style="light"/><View style={{flex:1,paddingHorizontal:20,paddingTop:12,paddingBottom:22,backgroundColor:'#000'}}>
-    <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center'}}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Calculation history" onPress={()=>Alert.alert('Calculation history',calculationHistory.length?calculationHistory.slice(0,8).join('\n'):'No calculations yet.')} style={{width:54,height:54,borderRadius:28,backgroundColor:'#29292B',alignItems:'center',justifyContent:'center'}}><RotateCcwClock size={29} color="#D8D8DA"/></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Clear current calculation" onPress={()=>setValue('0')} style={{width:54,height:54,borderRadius:28,backgroundColor:'#29292B',alignItems:'center',justifyContent:'center'}}><CalculatorIcon size={27} color="#D8D8DA"/></Pressable>
+  const horizontalPadding = width < 340 ? 12 : width < 400 ? 16 : 20;
+  const gap = width < 340 ? 8 : 10;
+  const topBarSize = width < 340 ? 46 : 52;
+  const displayMin = 78;
+  const reserved = insets.top + insets.bottom + 16 + topBarSize + gap * 6 + displayMin;
+  const cellByWidth = (width - horizontalPadding * 2 - gap * 3) / 4;
+  const cellByHeight = (height - reserved) / 5;
+  const cell = Math.round(Math.max(42, Math.min(cellByWidth, cellByHeight)));
+  const keyFont = Math.round(Math.max(22, Math.min(34, cell * 0.42)));
+  const displayFont = Math.round(Math.max(32, Math.min(64, cell * 0.82)));
+  const openHistory = () => Alert.alert('Calculation history', calculationHistory.length ? calculationHistory.slice(0, 8).join('\n') : 'No calculations yet.');
+  return <View style={{ flex: 1, backgroundColor: '#000', paddingTop: insets.top + 8, paddingBottom: insets.bottom + 8, paddingHorizontal: horizontalPadding }}>
+    <StatusBar style="light" />
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', height: topBarSize }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Calculation history" onPress={openHistory} style={{ width: topBarSize, height: topBarSize, borderRadius: topBarSize / 2, backgroundColor: '#29292B', alignItems: 'center', justifyContent: 'center' }}><RotateCcwClock size={topBarSize * 0.54} color="#D8D8DA" /></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Clear current calculation" onPress={() => setValue('0')} style={{ width: topBarSize, height: topBarSize, borderRadius: topBarSize / 2, backgroundColor: '#29292B', alignItems: 'center', justifyContent: 'center' }}><CalculatorIcon size={topBarSize * 0.5} color="#D8D8DA" /></Pressable>
     </View>
-    <View style={{flex:1,justifyContent:'flex-end',paddingBottom:22}}>
-      <Text accessibilityLabel={`Calculator display ${value}`} numberOfLines={1} adjustsFontSizeToFit style={{fontFamily:type.ui,fontSize:54,color:'#F5F5F7',textAlign:'right',minHeight:72}}>{value==='0'?'':value}</Text>
+    <View style={{ flex: 1, justifyContent: 'flex-end', paddingVertical: gap }}>
+      <Text accessibilityLabel={`Calculator display ${value}`} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.4} style={{ fontFamily: type.ui, fontSize: displayFont, color: '#F5F5F7', textAlign: 'right' }}>{value}</Text>
     </View>
-    <View style={{gap:10}}>{Array.from({length:5},(_,row)=><View key={row} style={{flexDirection:'row',gap:10}}>{keys.slice(row*4,row*4+4).map(key=>{
-      const isEquals=key==='=';const isOperation=operations.has(key);const isUtility=utility.has(key);
-      return <Pressable accessibilityRole="button" accessibilityLabel={key==='C'?'Clear':key==='⌫'?'Delete last digit':key==='='?'Calculate':key==='±'?'Change sign':key} key={key} onPress={()=>key==='C'?setValue('0'):add(key)} style={{flex:1,height:80,borderRadius:40,backgroundColor:isEquals?'#FF5F0A':isOperation||isUtility?'#4A4A4C':'#242426',alignItems:'center',justifyContent:'center'}}>
-        {key==='⌫'?<Delete size={30} color="#F5F5F7"/>:<Text style={{fontFamily:type.ui,fontSize:key==='±'?31:34,color:'#F5F5F7'}}>{key}</Text>}
-      </Pressable>;
-    })}</View>)}</View>
-  </View></Screen>
+    <View style={{ gap, alignItems: 'center' }}>
+      {Array.from({ length: 5 }, (_, row) => <View key={row} style={{ flexDirection: 'row', gap }}>
+        {keys.slice(row * 4, row * 4 + 4).map(key => {
+          const isEquals = key === '=';
+          const isOperation = operations.has(key);
+          const isUtility = utility.has(key);
+          return <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={key === 'C' ? 'Clear' : key === '⌫' ? 'Delete last digit' : key === '=' ? 'Calculate' : key === '±' ? 'Change sign' : key}
+            key={key}
+            onPress={() => key === 'C' ? setValue('0') : add(key)}
+            style={({ pressed }) => [{ width: cell, height: cell, borderRadius: cell / 2, backgroundColor: isEquals ? '#FF5F0A' : isOperation || isUtility ? '#4A4A4C' : '#242426', alignItems: 'center', justifyContent: 'center' }, pressed && { opacity: 0.72 }]}
+          >
+            {key === '⌫' ? <Delete size={cell * 0.36} color="#F5F5F7" /> : <Text style={{ fontFamily: type.ui, fontSize: key === '±' ? keyFont * 0.9 : keyFont, color: '#F5F5F7' }}>{key}</Text>}
+          </Pressable>;
+        })}
+      </View>)}
+    </View>
+  </View>;
 }
 function safeMath(expr:string){try{const clean=expr.replaceAll('×','*').replaceAll('÷','/').replaceAll('−','-').replace(/[^0-9.+*/()%\-]/g,'');if(!clean||/[+*/.-]$/.test(clean))return expr;const tokens=clean.match(/\d+(?:\.\d+)?|[()+*/%-]/g)||[];let i=0;const primary=():number=>{const t=tokens[i++];if(t==='('){const n=sum();i++;return n}if(t==='-')return-primary();return Number(t)};const product=():number=>{let n=primary();while(['*','/','%'].includes(tokens[i])){const op=tokens[i++],b=primary();n=op==='*'?n*b:op==='/'?n/b:n%b}return n};const sum=():number=>{let n=product();while(tokens[i]==='+'||tokens[i]==='-'){const op=tokens[i++],b=product();n=op==='+'?n+b:n-b}return n};const out=sum();return Number.isFinite(out)?String(Number(out.toFixed(8))):'Error'}catch{return expr}}
 export function SosScreen() {
@@ -403,7 +430,28 @@ export function PrivacyScreen(){
   const checklist=['Two-step verification enabled','Recovery email reviewed','Profile visibility limited','Old sessions signed out'];
   const passwordScore=[password.length>=12,/[a-z]/.test(password),/[A-Z]/.test(password),/\d/.test(password),/[^A-Za-z0-9]/.test(password)].filter(Boolean).length*20;
   const strength=passwordScore<40?'Needs work':passwordScore<80?'Getting stronger':password?'Strong':'Not checked';
-  return <Screen><Heading title="Privacy audit"/><Card><Title>On-device password check</Title><Field label="Password" placeholder="Enter a password" secureTextEntry value={password} onChangeText={setPassword}/><View style={{backgroundColor:passwordScore<40?colors.warnBg:colors.pink100,padding:12,borderRadius:15}}><Text style={txt(13,colors.ink,type.semibold)}>{password?`Strength: ${strength} · ${passwordScore}/100`:'Enter a password to check its length and character variety.'}</Text></View><Body style={{fontSize:12}}>This check runs only on this phone. It does not compare against breach databases or send the password anywhere. Use a unique password and avoid sharing it.</Body></Card><Card><Title>Exposure checklist</Title><View style={{alignItems:'center',gap:8}}><ScoreRing value={Math.round(checks.length*25)} size={90}/><Body>{checks.length} of {checklist.length} actions marked complete</Body></View>{checklist.map(label=><Toggle key={label} label={label} value={checks.includes(label)} onValueChange={enabled=>setChecks(current=>enabled?[...current,label]:current.filter(item=>item!==label))}/>)}</Card><Card style={{backgroundColor:colors.pink100}}><Text style={txt(14,colors.ink,type.bold)}>A small step helps</Text><Body>Use a unique password and enable two-step verification wherever available.</Body></Card></Screen>
+  const openBreachCheck=()=>{void Linking.openURL('https://haveibeenpwned.com/').catch(()=>Alert.alert('Link unavailable','Could not open the browser. Visit haveibeenpwned.com manually.'));};
+  return <Screen>
+    <Heading title="Privacy audit" />
+    <Card>
+      <Title>On-device password check</Title>
+      <Field label="Password" placeholder="Enter a password" secureTextEntry value={password} onChangeText={setPassword} />
+      <View style={{backgroundColor:passwordScore<40?colors.warnBg:colors.pink100,padding:12,borderRadius:15}}><Text style={txt(13,colors.ink,type.semibold)}>{password?`Strength: ${strength} · ${passwordScore}/100`:'Enter a password to check its length and character variety.'}</Text></View>
+      <Body style={{fontSize:12}}>This check runs only on this phone and does not send your password anywhere. Use a unique password and avoid sharing it.</Body>
+    </Card>
+    <Card>
+      <Title>Check your account</Title>
+      <Body>Find out whether your email has appeared in a known data breach. This opens Have I Been Pwned in your browser; Bindaas does not send your email anywhere.</Body>
+      <Button title="Check your account here" onPress={openBreachCheck} />
+      <Body style={{fontSize:12}}>Opens haveibeenpwned.com, an independent service. Review its privacy policy before entering an address.</Body>
+    </Card>
+    <Card>
+      <Title>Exposure checklist</Title>
+      <View style={{alignItems:'center',gap:8}}><ScoreRing value={Math.round(checks.length*25)} size={90}/><Body>{checks.length} of {checklist.length} actions marked complete</Body></View>
+      {checklist.map(label=><Toggle key={label} label={label} value={checks.includes(label)} onValueChange={enabled=>setChecks(current=>enabled?[...current,label]:current.filter(item=>item!==label))}/>)}
+    </Card>
+    <Card style={{backgroundColor:colors.pink100}}><Text style={txt(14,colors.ink,type.bold)}>A small step helps</Text><Body>Use a unique password and enable two-step verification wherever available.</Body></Card>
+  </Screen>;
 }
 export function TimerScreen() {
   const params = useLocalSearchParams<{ minutes?: string }>();

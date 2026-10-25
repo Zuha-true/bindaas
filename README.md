@@ -15,7 +15,7 @@ Version 1 includes the Bindaas brand logo, an animated splash screen, local sign
 - **Safety timer** with a check-in reminder and an SOS prompt when the timer expires.
 - **Simulated call** setup with optional ringtone, vibration, language, and a script; a scheduled notification opens the in-app incoming-call screen.
 - **Account check** that compares two handles for lookalike letters, separators, and profile warning signs. Results stay on-device and can be saved as evidence.
-- **Report, evidence, and privacy audit** tools for saving local notes, verifying evidence fingerprints, and reviewing password and exposure hygiene.
+- **Report, evidence, and privacy audit** tools for saving local notes, verifying evidence fingerprints, reviewing password and exposure hygiene, and opening the **Have I Been Pwned** breach check from the privacy audit.
 - **Support centre** with first steps, verified helplines, useful links, and scenario-specific guidance (immediate danger, harassment, fraud, image abuse, and more).
 - **On-device profile**: sign up, log in, edit name/phone/email, and choose a profile photo with `expo-image-picker`. Log out keeps local data; erase clears it.
 - **Discreet modes**: a camouflaged calculator (`2468` opens the Hub, `1122` opens SOS) and a Tadka cooking skin.
@@ -111,6 +111,7 @@ The estimate is limited by incomplete or outdated OpenStreetMap opening hours. U
 - Profiles, contacts, evidence, settings, route selections, and the SOS log are stored on the device with AsyncStorage.
 - Evidence fingerprints are generated locally with SHA-256.
 - No account server, analytics, or background location service is connected.
+- **Check your account** in the privacy audit opens `haveibeenpwned.com` externally; Bindaas does not send the email address itself.
 - Log out removes only `session:v1`; **erase** clears all stored Bindaas keys and cancels scheduled notifications.
 
 ## Checks and tests
