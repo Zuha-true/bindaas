@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert, AppState, Linking, Modal, Pressable, Share, Text, TextInput, Vibration, View } from 'react-native';
+import { Alert, AppState, Image, Linking, Modal, Pressable, Share, Text, TextInput, Vibration, View } from 'react-native';
 import { Href, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
 import * as SMS from 'expo-sms';
@@ -11,14 +11,14 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { StatusBar } from 'expo-status-bar';
 import { AudioModule, useAudioPlayer } from 'expo-audio';
 import { useKeepAwake } from 'expo-keep-awake';
-import { Activity, Bell, Calculator as CalculatorIcon, Delete, Heart, Phone, RotateCcwClock, Search, ShieldCheck, Siren, Utensils, X } from 'lucide-react-native';
+import { Activity, Bell, Calculator as CalculatorIcon, Delete, Heart, Phone, RotateCcwClock, Search, Siren, Utensils, X } from 'lucide-react-native';
 import { Button, Body, Card, Chip, Field, Heading, HeaderBand, Label, MapPlaceholder, ScoreRing, Screen, Tile, Title, Toggle } from './components/ui';
 import { colors, shadow, type } from './theme/tokens';
 import { ROUTES, AppRoute } from './constants/routes';
 import { recipes, routes } from './data/mock';
 import { readTrustedContacts, TrustedContact, writeTrustedContacts } from './services/contacts';
 import { cancelSOS, getActiveSosSource, prepareSOSMessage, readSosLog, requestSOSCoordinates, SosLogEntry, triggerSOS } from './services/sos';
-import { endTrip, isTripActive, setLocationReminderEnabled, startTrip } from './services/tripStore';
+import { endTrip, startTrip } from './services/tripStore';
 import { requestVoicePermissions } from './services/voicePermissions';
 import { setShakeEnabled, setVoiceEnabled, useTriggerStatus } from './services/triggerPreferences';
 import { cancelFakeCallNotification, DEFAULT_FAKE_CALL_SETTINGS, FakeCallSettings, readFakeCallSettings, scheduleFakeCall, writeFakeCallSettings } from './services/fakeCall';
@@ -33,11 +33,14 @@ import { readAppSettings, setDisguiseMode, writeAppSettings, type DisguiseMode }
 import { readProfile, saveProfile } from './services/profile';
 import { validateProfile } from './services/profileValidation';
 import { SettingsActions } from './components/SettingsActions';
+import { IMAGES } from './constants/assets';
+import { buildLiveLocationMessage, elapsedLabel, formatDuration, normalizeCustomMinutes, remainingLabel, REMINDER_OPTIONS, type LocationShareSession } from './services/locationShareSession';
+import { readLocationSharing, startLocationSharing, stopLocationSharing, subscribeLocationSharing, updateLocationSharingRecipients, updateLocationSharingReminder } from './services/locationSharing';
 
 const go=(path:AppRoute)=>router.push(path as Href);
 const indicators = ['Similar name', 'Lookalike letters', 'Separator changed', 'New account', 'Few posts', 'Copied picture', 'Urgent tone'];
 const txt=(size:number,color:string=colors.ink,font:string=type.ui)=>({fontSize:size,color,fontFamily:font});
-export function SplashScreen({cta=true}:{cta?:boolean}={}){return <Screen dark><View style={{flex:1,alignItems:'center',justifyContent:'center',gap:16,paddingBottom:64,overflow:'hidden'}}><View pointerEvents="none" style={{position:'absolute',width:370,height:370,borderRadius:200,borderWidth:1,borderColor:colors.splashRim,alignItems:'center',justifyContent:'center'}}><View style={{width:290,height:290,borderRadius:150,borderWidth:1,borderColor:colors.splashRim,alignItems:'center',justifyContent:'center'}}><View style={{width:250,height:250,borderRadius:125,backgroundColor:colors.ink3,opacity:.55}}/></View></View><View style={{width:116,height:116,borderRadius:38,backgroundColor:colors.pink,alignItems:'center',justifyContent:'center'}}><ShieldCheck color={colors.ink} size={54}/></View><Text style={{fontFamily:type.display,fontSize:56,color:colors.pink}}>Bindaas</Text><Text style={{...txt(16,colors.white)}}>Fearless, on your own terms.</Text>{cta&&<View style={{position:'absolute',left:0,right:0,bottom:12,paddingHorizontal:12}}><Button title="Get started" variant="pink" onPress={()=>go(ROUTES.onboarding)}/></View>}</View></Screen>}
+export { BrandSplash as SplashScreen } from './components/BrandSplash';
 export function OnboardingScreen(){
   const [step,setStep]=useState(0);
   const pages=[
@@ -68,7 +71,12 @@ export function HubScreen() {
   }, []));
   return <Screen>
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-      <View><Text style={txt(14, colors.ink2)}>Good evening</Text><Text style={{ fontFamily: type.display, fontSize: 30, color: colors.ink }}>Hi, {profileName}</Text></View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <View pointerEvents="none" style={{ width: 44, height: 44, borderRadius: 15, backgroundColor: colors.ink, alignItems: 'center', justifyContent: 'center' }}>
+          <Image source={IMAGES.emblem} style={{ width: 34, height: 34 }} resizeMode="contain" accessibilityLabel="Bindaas logo" />
+        </View>
+        <View><Text style={{ fontFamily: type.display, fontSize: 26, lineHeight: 28, color: colors.ink }}>Bindaas</Text><Text style={txt(12, colors.ink2)}>Hi, {profileName}</Text></View>
+      </View>
       <View style={{ flexDirection: 'row', gap: 9 }}>
         <Pressable accessibilityRole="button" accessibilityLabel="Lock now" onPress={() => go(ROUTES.calculator)} style={{ backgroundColor: colors.white, paddingHorizontal: 16, borderRadius: 30, justifyContent: 'center', minHeight: 44 }}><Text style={txt(13, colors.ink, type.semibold)}>Lock now</Text></Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Settings and notifications" onPress={() => go(ROUTES.settings)} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' }}><Bell color={colors.ink} size={21} /></Pressable>
@@ -220,151 +228,159 @@ export function SosCountdownScreen() {
 export function LiveScreen() {
   const [contacts, setContacts] = useState<TrustedContact[]>([]);
   const [selectedPhones, setSelectedPhones] = useState<string[]>([]);
-  const [position, setPosition] = useState<Location.LocationObjectCoords | null>(null);
+  const [session, setSession] = useState<LocationShareSession | null>(null);
+  const [reminderMinutes, setReminderMinutes] = useState<number>(10);
+  const [customVisible, setCustomVisible] = useState(false);
+  const [customMinutes, setCustomMinutes] = useState('');
   const [locationUnavailable, setLocationUnavailable] = useState(false);
-  const [reminderEnabled, setReminderEnabled] = useState(false);
-  const [foregroundReminder, setForegroundReminder] = useState(false);
-  const [tripActive, setTripActive] = useState(false);
   const [status, setStatus] = useState('');
-  const watching = useRef<Location.LocationSubscription | null>(null);
+  const [, setTick] = useState(0);
 
   useFocusEffect(useCallback(() => {
-    let active=true;
-    void readTrustedContacts().then(saved => {if(active){setContacts(saved);setSelectedPhones(saved.map(contact => contact.phone));}});
-    void isTripActive().then(setTripActive);
-    void AsyncStorage.getItem('trip:location-reminder-enabled:v1').then(value => {setReminderEnabled(value === 'true');setForegroundReminder(value === 'true'&&isExpoGo);});
-    return ()=>{active=false;};
+    let active = true;
+    void readTrustedContacts().then(saved => {
+      if (!active) return;
+      setContacts(saved);
+      setSelectedPhones(current => current.length ? current : saved.map(contact => contact.phone));
+    });
+    void readLocationSharing().then(saved => {
+      if (!active || !saved) return;
+      setSession(saved);
+      if (saved.reminderMinutes) setReminderMinutes(saved.reminderMinutes);
+      if (saved.recipients.length) setSelectedPhones(saved.recipients);
+    });
+    const unsubscribe = subscribeLocationSharing(value => { if (active) setSession(value); });
+    return () => { active = false; unsubscribe(); };
   }, []));
 
   useEffect(() => {
-    if (!foregroundReminder || !reminderEnabled || !tripActive) return undefined;
-    const id = setInterval(() => {
-      if (AppState.currentState === 'active') Alert.alert('Location check-in', 'Prepare a location update if you still need to share one.');
-    }, 5 * 60 * 1000);
+    if (!session?.active) return undefined;
+    const id = setInterval(() => setTick(value => value + 1), 1000);
     return () => clearInterval(id);
-  }, [foregroundReminder, reminderEnabled, tripActive]);
+  }, [session?.active]);
 
-  useFocusEffect(useCallback(() => {
-    let cancelled = false;
-    if (!position) return undefined;
-    void Location.watchPositionAsync({ accuracy: Location.Accuracy.Balanced, timeInterval: 5000, distanceInterval: 10 }, latest => {
-      setPosition(latest.coords);
-    }).then(subscription => {
-      if (cancelled) subscription.remove(); else watching.current = subscription;
-    }).catch(() => setLocationUnavailable(true));
-    return () => { cancelled = true; watching.current?.remove(); watching.current = null; };
-  }, [Boolean(position)]));
+  const stopSharing = async () => {
+    await stopLocationSharing();
+    setSession(null);
+    setStatus('Live location sharing stopped.');
+  };
 
-  const showLocationReason = () => Alert.alert(
-    'Use your location?',
-    'Bindaas uses foreground location only to prepare this message and update the map while this screen is open.',
-    [
-      { text: 'Continue', onPress: () => { void requestLocationAndSend(); } },
-      { text: 'Continue without location', onPress: () => { void sendLocationMessage(null); } },
-      { text: 'Cancel', style: 'cancel' },
-    ],
-  );
-
-  const sendLocationMessage = async (coords: Location.LocationObjectCoords | null) => {
+  const sendToRecipients = async (live: LocationShareSession) => {
     const saved = await readTrustedContacts();
     if (!saved.length) {
       await AsyncStorage.setItem('circle:notice:v1', 'Add a trusted contact first');
       router.replace(ROUTES.circle);
-      return;
+      return false;
     }
-    const recipients = saved.filter(contact => selectedPhones.includes(contact.phone));
-    if (!recipients.length) { Alert.alert('Choose a contact', 'Select at least one trusted contact.'); return; }
-    const where = coords ? `https://maps.google.com/?q=${coords.latitude},${coords.longitude}` : 'location unavailable';
-    const message = `I'm sharing my location (BINDAAS): ${where}`;
+    const recipients = saved.filter(contact => live.recipients.includes(contact.phone));
+    if (!recipients.length) { Alert.alert('Choose a contact', 'Select at least one trusted contact.'); return false; }
+    if (live.latitude === null || live.longitude === null) { Alert.alert('Waiting for location', 'The first location update has not arrived yet. Try again in a moment.'); return false; }
+    const message = buildLiveLocationMessage(live.latitude, live.longitude, live.reminderMinutes);
     try {
       if (await SMS.isAvailableAsync()) await SMS.sendSMSAsync(recipients.map(contact => contact.phone), message);
       else await Share.share({ message });
-      setStatus('Message opened for you to send');
+      return true;
     } catch {
-      setStatus('The message could not be opened. Check your messaging app and retry.');
+      return false;
     }
   };
 
-  const requestLocationAndSend = async () => {
+  const startSharing = async () => {
+    if (!selectedPhones.length) { Alert.alert('Choose a contact', 'Select at least one trusted contact before sharing.'); return; }
+    setStatus('');
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== 'granted') {
-        setLocationUnavailable(true);
-        setPosition(null);
-        setStatus('Location unavailable. You can retry or prepare the message without it.');
-        return;
-      }
-      const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setPosition(current.coords);
+      const started = await startLocationSharing(reminderMinutes, selectedPhones);
+      setSession(started);
       setLocationUnavailable(false);
-      setTripActive(true);
-      await startTrip();
-      await sendLocationMessage(current.coords);
-    } catch {
+      const sent = await sendToRecipients(started);
+      setStatus(sent
+        ? `Live location sharing is on. Update opened for you to send; Bindaas will remind you to stop in ${formatDuration(reminderMinutes)}.`
+        : `Live location sharing is on. Bindaas will remind you to stop in ${formatDuration(reminderMinutes)}; the message could not be opened.`);
+    } catch (error) {
       setLocationUnavailable(true);
-      setPosition(null);
-      setStatus('Location unavailable. You can retry or prepare the message without it.');
+      if (error instanceof Error && error.message === 'permission') setStatus('Location permission is needed to share your live location.');
+      else setStatus('Location is unavailable right now. Check that location services are on and retry.');
     }
   };
 
-  const changeReminder = (enabled: boolean) => {
-    if (!enabled) {
-      setReminderEnabled(false);
-      setForegroundReminder(false);
-      void setLocationReminderEnabled(false);
-      return;
-    }
-    Alert.alert('Location reminder', 'Bindaas can remind you every five minutes while this screen is open. Background reminders need a compatible development build.', [
-      { text: 'Continue', onPress: () => { void (async () => {
-        const notifications = await loadNotifications();
-        if (!notifications || typeof notifications.getPermissionsAsync !== 'function') {
-          await startTrip();
-          await AsyncStorage.setItem('trip:location-reminder-enabled:v1','true');
-          setForegroundReminder(true);setReminderEnabled(true);setTripActive(true);
-          setStatus('Five-minute reminders are active while this screen stays open.');
-          return;
-        }
-        const current = await notifications.getPermissionsAsync();
-        const permission = current.granted ? current : await notifications.requestPermissionsAsync();
-        if (!permission.granted) {
-          await startTrip();await AsyncStorage.setItem('trip:location-reminder-enabled:v1','true');
-          setForegroundReminder(true);setReminderEnabled(true);setTripActive(true);
-          setStatus('Notifications are off. Five-minute reminders will appear while this screen stays open.');
-          return;
-        }
-        await startTrip();
-        const scheduled = await setLocationReminderEnabled(true);
-        if (!scheduled) { Alert.alert('Reminder unavailable', 'Notifications could not be loaded in this Expo Go build.'); return; }
-        setForegroundReminder(false);setReminderEnabled(true);setTripActive(true);
-      })().catch(()=>Alert.alert('Reminder unavailable','The reminder could not be started.')); } },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+  const sendLatest = async () => {
+    if (!session) return;
+    const sent = await sendToRecipients(session);
+    setStatus(sent ? 'Latest location opened for you to send.' : 'The latest location could not be opened. Check your messaging app and retry.');
   };
 
-  const toggleContact = (phone: string) => setSelectedPhones(current => current.includes(phone) ? current.filter(item => item !== phone) : [...current, phone]);
+  const chooseReminder = (minutes: number) => {
+    setReminderMinutes(minutes);
+    if (session?.active) void updateLocationSharingReminder(minutes).then(setSession);
+  };
+
+  const applyCustomReminder = () => {
+    const parsed = normalizeCustomMinutes(customMinutes);
+    if (parsed === null) { Alert.alert('Check the time', 'Enter a reminder between 1 and 1440 minutes.'); return; }
+    chooseReminder(parsed);
+    setCustomVisible(false);
+    setCustomMinutes('');
+  };
+
+  const toggleContact = (phone: string) => {
+    setSelectedPhones(current => {
+      const next = current.includes(phone) ? current.filter(item => item !== phone) : [...current, phone];
+      if (session?.active) void updateLocationSharingRecipients(next);
+      return next;
+    });
+  };
+
+  const coords = session?.latitude !== null && session?.latitude !== undefined && session?.longitude !== null && session?.longitude !== undefined
+    ? { latitude: session.latitude, longitude: session.longitude }
+    : null;
+  const sharing = Boolean(session?.active);
+  const presetReminder = (REMINDER_OPTIONS as readonly number[]).includes(reminderMinutes);
+
   return <Screen>
     <Heading title="Share location" />
-    <Card><Title>Who can receive this draft?</Title><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+    <Card><Title>Who can receive live updates?</Title><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
       {contacts.map(contact => <Pressable key={contact.phone} accessibilityRole="checkbox" accessibilityLabel={contact.name} accessibilityState={{ checked: selectedPhones.includes(contact.phone) }} onPress={() => toggleContact(contact.phone)} style={{ width: 74, alignItems: 'center', gap: 5 }}>
         <View pointerEvents="none" style={{ width: 52, height: 52, borderRadius: 26, borderWidth: selectedPhones.includes(contact.phone) ? 2 : 0, borderColor: colors.ink, backgroundColor: colors.pink100, alignItems: 'center', justifyContent: 'center' }}><Text style={txt(17, colors.ink, type.bold)}>{contact.name.slice(0, 1).toUpperCase()}</Text></View>
         <Text numberOfLines={1} style={{ ...txt(12, colors.ink2, type.semibold), maxWidth: 72 }}>{contact.name}</Text>
       </Pressable>)}
       <Pressable accessibilityRole="button" accessibilityLabel="Add trusted contact" onPress={() => go(ROUTES.circle)} style={{ width: 74, alignItems: 'center', gap: 5 }}><View pointerEvents="none" style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 1, borderColor: colors.ink2, alignItems: 'center', justifyContent: 'center' }}><Text style={txt(22, colors.ink)}>+</Text></View><Text style={txt(12, colors.ink2, type.semibold)}>Add</Text></Pressable>
-      {!contacts.length && <Body style={{ fontSize: 13 }}>Add a trusted contact before preparing a message.</Body>}
+      {!contacts.length && <Body style={{ fontSize: 13 }}>Add a trusted contact before sharing your location.</Body>}
     </View></Card>
-    <View style={{ height: 220 }}><MapPlaceholder position={position} /></View>
-    <Text style={{ ...txt(11, colors.ink2), textAlign: 'right' }}>{position ? 'Map illustration · marker uses your foreground location' : 'Map illustration · no live location loaded'}</Text>
-    {position && <Body style={{ fontSize: 12 }}>Your location is updating while this screen is open.</Body>}
-    {locationUnavailable && <Body style={{ color: colors.warn }}>Location unavailable. Retry permission or prepare without location.</Body>}
+    <View style={{ height: 220 }}><MapPlaceholder position={coords} /></View>
+    <Text style={{ ...txt(11, colors.ink2), textAlign: 'right' }}>{sharing ? 'Live map · updates while Bindaas is open' : 'Map illustration · live location off'}</Text>
+    {locationUnavailable && <Body style={{ color: colors.warn }}>Location unavailable. Check permission and try again.</Body>}
     {status ? <Body accessibilityLiveRegion="polite">{status}</Body> : null}
     <Card>
-      <Row title="Snapshot message" sub="Prepared with a map link" right="" />
-      <Toggle label="Remind me to resend every 5 min" value={reminderEnabled} onValueChange={changeReminder} />
-      <Row title="Location marker" sub="Updates only while this screen is open" right={position?'Updating':'Paused'} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={txt(16, colors.ink, type.bold)}>{sharing ? 'Sharing live location' : 'Live location off'}</Text>
+          <Text style={txt(12, colors.ink2)}>{sharing && session ? `On for ${elapsedLabel(session.startedAt)} · updates every few seconds` : 'Keep sending updates until you stop.'}</Text>
+        </View>
+        <View pointerEvents="none" style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: sharing ? colors.green : colors.muted }} />
+      </View>
+      <Text style={txt(13, colors.ink2, type.semibold)}>Remind me to stop after</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {REMINDER_OPTIONS.map(option => <Chip key={option} active={reminderMinutes === option} onPress={() => chooseReminder(option)}>{formatDuration(option)}</Chip>)}
+        <Chip active={!presetReminder} onPress={() => setCustomVisible(true)}>{presetReminder ? 'Custom' : formatDuration(reminderMinutes)}</Chip>
+      </View>
+      {sharing && session && remainingLabel(session) ? <Text style={txt(12, colors.ink2)}>{remainingLabel(session)}</Text> : null}
+      {sharing
+        ? <Button title="Stop sharing location" variant="sos" onPress={() => void stopSharing()} />
+        : <Button title="Start sharing live location" disabled={!selectedPhones.length} onPress={() => void startSharing()} />}
     </Card>
-    {tripActive && <Button title="End trip" variant="line" onPress={() => { void endTrip(); setTripActive(false); setReminderEnabled(false);setForegroundReminder(false); }} />}
-    <Button title={locationUnavailable ? 'Retry location permission' : 'Prepare location message'} onPress={showLocationReason} />
-    <Body style={{ fontSize: 12, textAlign: 'center' }}>Location sharing is foreground-only. No background tracking.</Body>
+    {sharing && <Button title="Send latest location now" variant="line" onPress={() => void sendLatest()} />}
+    <Body style={{ fontSize: 12, textAlign: 'center' }}>Live updates work while Bindaas is open and stop as soon as you tap stop. No background tracking.</Body>
+    <Modal transparent visible={customVisible} animationType="fade" onRequestClose={() => setCustomVisible(false)}>
+      <View style={{ flex: 1, backgroundColor: colors.scrim, justifyContent: 'center', padding: 22 }}>
+        <Card>
+          <Title>Custom reminder</Title>
+          <Body>Minutes until Bindaas reminds you to stop sharing.</Body>
+          <Field label="Minutes" placeholder="e.g. 45" keyboardType="number-pad" value={customMinutes} onChangeText={setCustomMinutes} />
+          <Button title="Set reminder" onPress={applyCustomReminder} />
+          <Button title="Cancel" variant="line" onPress={() => setCustomVisible(false)} />
+        </Card>
+      </View>
+    </Modal>
   </Screen>;
 }
 function Row({title,sub,right='›'}:{title:string;sub?:string;right?:string}){return <View style={{flexDirection:'row',justifyContent:'space-between',alignItems:'center',gap:12}}><View style={{flex:1}}><Text style={txt(15,colors.ink,type.semibold)}>{title}</Text>{sub&&<Text style={txt(12,colors.ink2)}>{sub}</Text>}</View><Text style={txt(18,colors.ink2)}>{right}</Text></View>}

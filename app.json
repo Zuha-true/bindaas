@@ -6,6 +6,12 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/bindaas-icon.png",
+    "splash": {
+      "image": "./assets/bindaas-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#2F170B"
+    },
     "plugins": [
       "expo-router",
       [
@@ -40,6 +46,10 @@
     },
     "android": {
       "package": "com.bindaas.safety",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/bindaas-icon-foreground.png",
+        "backgroundColor": "#2F170B"
+      },
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
